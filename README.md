@@ -7,7 +7,7 @@ or receive Telegram messages.
 | Item | Value |
 | --- | --- |
 | Library | [`telegram_client.py`](telegram_client.py) |
-| Version | 1.0.0 |
+| Version | 1.0.1 |
 | Runtime | Python 3.10+ (developed on 3.13) |
 | Telegram wrapper | `python-telegram-bot` 22.x |
 | Tests | `python -m pytest tests` |
@@ -133,11 +133,14 @@ python send_alert.py --photo chart.png "daily"
 python send_alert.py --chat-id 111 "override destination"
 
 python listener.py
+python listener.py -v
 ```
 
 `listener.py` commands: `/start` `/ping` `/status` `/id`. Plain text `hello`
-gets `Hello`. Unexpected crashes restart with exponential backoff (5s → 60s).
-Ctrl+C stops. Config errors are not retried.
+gets `Hello`. Default logs are start/stop and errors — not each long-poll
+HTTP call. `-v` logs HTTP requests; the bot token is still redacted.
+Unexpected crashes restart with exponential backoff (5s → 60s). Ctrl+C stops.
+Config errors are not retried.
 
 ## Behaviour that callers should know
 
@@ -148,7 +151,8 @@ Ctrl+C stops. Config errors are not retried.
 - Documents max 50 MB; photos max 10 MB; captions max 1024 characters.
 - Flood-wait (`RetryAfter`) and network timeouts are retried. `Forbidden`,
   `InvalidToken`, and `Conflict` are not.
-- Tokens are redacted in log lines. `repr(bot)` does not include the token.
+- Tokens are redacted in log lines (including httpx URLs). `repr(bot)` does
+  not include the token.
 
 ## Tests
 

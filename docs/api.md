@@ -1,6 +1,6 @@
 # API reference
 
-Public surface of `telegram_client.py` (version 1.0.0). Internals whose names
+Public surface of `telegram_client.py` (version 1.0.1). Internals whose names
 start with `_` are not part of the contract.
 
 ```python
@@ -55,6 +55,8 @@ Instance attributes callers may read: `chat_id`, `allowed_chat_ids`,
 | `load_chat_id(path=None)` | `int` | Default `private/my_chat_id` then `private/chat_id` |
 | `discover_credentials(private_dir=None, *, token_file=None, chat_id_file=None)` | `(token or None, chat_id or None)` | Missing files are not an error |
 | `split_message(text, limit=4096)` | `list[str]` | Prefers newline, then space |
+| `configure_logging(*, level=INFO, verbose=False)` | `None` | Example-script logging: quiet httpx unless `verbose` |
+| `TokenRedactFilter` | `logging.Filter` | Replaces BotFather tokens in log records |
 
 Env names: `TOKEN_ENV` (`TELEGRAM_BOT_TOKEN`), `CHAT_ID_ENV` (`TELEGRAM_CHAT_ID`).
 `BASE_DIR` is the directory that contains `telegram_client.py`.

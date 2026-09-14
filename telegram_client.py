@@ -66,6 +66,8 @@ __all__ = [
     "TelegramBot",
     "TelegramConfigError",
     "TelegramPTB",
+    "TokenRedactFilter",
+    "configure_logging",
     "discover_credentials",
     "load_chat_id",
     "load_secret",
@@ -83,7 +85,7 @@ __all__ = [
     "TimedOut",
 ]
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 BASE_DIR = Path(__file__).resolve().parent
 TOKEN_ENV = "TELEGRAM_BOT_TOKEN"
@@ -92,7 +94,9 @@ CHAT_ID_ENV = "TELEGRAM_CHAT_ID"
 _TOKEN_FILENAMES = ("bot_token", "token", "telegram_token", "telegram_bot_token")
 _CHAT_ID_FILENAMES = ("chat_id", "my_chat_id")
 _TOKEN_RE = re.compile(r"^[0-9]{5,15}:[A-Za-z0-9_-]{30,}$")
+_TOKEN_LEAK_RE = re.compile(r"[0-9]{5,15}:[A-Za-z0-9_-]{30,}")
 _COMMAND_RE = re.compile(r"^[a-z0-9_]{1,32}$")
+_HTTP_LOGGERS = ("httpx", "httpcore")
 _PARSE_ERROR_HINTS = ("can't parse entities", "can't find end of the entity", "unsupported start tag")
 
 _MAX_TEXT = int(MessageLimit.MAX_TEXT_LENGTH)
@@ -107,6 +111,58 @@ _LOG = logging.getLogger("telegram_client")
 
 class TelegramConfigError(ValueError):
     """Invalid local configuration (token, chat id, missing files)."""
+
+
+class TokenRedactFilter(logging.Filter):
+    """Replace BotFather tokens in log records (httpx URLs, exceptions, args)."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = self.redact(record.msg)
+        if record.args:
+            if isinstance(record.args, dict):
+                record.args = {key: self.redact(value) for key, value in record.args.items()}
+            else:
+                record.args = tuple(self.redact(value) for value in record.args)
+        return True
+
+    @staticmethod
+    def redact(value: Any) -> Any:
+        if value is None or isinstance(value, (int, float, bool, bytes)):
+            return value
+        text = value if isinstance(value, str) else str(value)
+        redacted = _TOKEN_LEAK_RE.sub("<TOKEN>", text)
+        if redacted == text:
+            return value
+        return redacted
+
+
+def configure_logging(*, level: int = logging.INFO, verbose: bool = False) -> None:
+    """Console logging for example scripts.
+
+    Default: library INFO, httpx/httpcore WARNING (no per-poll getUpdates lines).
+    verbose=True: also log HTTP requests; tokens are still redacted.
+    """
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    _install_token_redaction()
+    http_level = logging.INFO if verbose else logging.WARNING
+    for name in _HTTP_LOGGERS:
+        logging.getLogger(name).setLevel(http_level)
+
+
+def _install_token_redaction() -> None:
+    """Attach TokenRedactFilter to HTTP loggers and existing root handlers."""
+    targets = _HTTP_LOGGERS + ("telegram_client",)
+    for name in targets:
+        logger = logging.getLogger(name)
+        if not any(isinstance(item, TokenRedactFilter) for item in logger.filters):
+            logger.addFilter(TokenRedactFilter())
+    root = logging.getLogger()
+    for handler in root.handlers:
+        if not any(isinstance(item, TokenRedactFilter) for item in handler.filters):
+            handler.addFilter(TokenRedactFilter())
 
 
 # ---------------------------------------------------------------------------
@@ -351,6 +407,7 @@ class TelegramBot:
         self.media_write_timeout = float(media_write_timeout)
         self.get_updates_read_timeout = float(get_updates_read_timeout)
         self._log = logger or _LOG
+        _install_token_redaction()
 
         allowed: set[int | str] = set()
         if self.chat_id is not None:

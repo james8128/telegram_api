@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.1 — 2026-09-15
+
+Quieter listener logs; stop leaking the bot token in HTTP lines.
+
+- `listener.py` no longer prints every `getUpdates` poll (`httpx` is WARNING)
+- `python listener.py -v` restores HTTP request logs
+- `TokenRedactFilter` / `configure_logging()` redact BotFather tokens in log
+  records (httpx puts the token in the URL)
+- `send_alert.py` uses the same logging setup
+- Ignore local `capture_*.jpg` screenshots so they are not committed
+
 ## 1.0.0 — 2026-09-14
 
 General-purpose rewrite of the previous `TelegramPTB` helper.

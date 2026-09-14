@@ -6,6 +6,8 @@ __pycache__/
 venv/
 .env
 *.lnk
+capture_*.jpg
+capture_*.png
 private/*
 !private/.gitkeep
 !private/README.md

@@ -94,6 +94,9 @@ Not bugs; things a later audit should still know.
   file open exclusively.
 - **Test `test_project_private_files_still_load`** reads the real `private/`
   token into process memory to check shape. It must never print it.
+- **httpx INFO includes the bot token in the request URL.** 1.0.1 installs
+  `TokenRedactFilter` on `httpx` / `httpcore` and `configure_logging()` sets
+  those loggers to WARNING unless `-v`. Do not raise httpx to INFO in examples.
 
 ## Follow-up checklist
 

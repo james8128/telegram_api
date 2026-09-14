@@ -10,10 +10,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 
-from telegram_client import TelegramBot, TelegramConfigError, TelegramError
+from telegram_client import TelegramBot, TelegramConfigError, TelegramError, configure_logging
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -22,16 +21,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("-f", "--file", dest="file_path", help="Local file to upload as a document")
     parser.add_argument("--photo", dest="photo_path", help="Local image to upload as a photo")
     parser.add_argument("--chat-id", dest="chat_id", help="Override the default chat id")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Log HTTP-level detail")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Log HTTP requests (bot token is still redacted)",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    configure_logging(verbose=args.verbose)
     if not args.text and not args.file_path and not args.photo_path:
         print("Nothing to send. Pass a message and/or --file / --photo.", file=sys.stderr)
         return 2

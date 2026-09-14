@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import timedelta
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from telegram_client import (
     TelegramBot,
     TelegramConfigError,
     TelegramPTB,
+    TokenRedactFilter,
+    configure_logging,
     discover_credentials,
     load_secret,
     parse_chat_id,
@@ -211,6 +214,47 @@ def test_redact() -> None:
     leaked = f"https://api.telegram.org/bot{FAKE_TOKEN}/sendMessage"
     assert FAKE_TOKEN not in bot._redact(leaked)
     assert "<TOKEN>" in bot._redact(leaked)
+
+
+def test_token_redact_filter_covers_httpx_args() -> None:
+    filt = TokenRedactFilter()
+    url = f"https://api.telegram.org/bot{FAKE_TOKEN}/getUpdates"
+    record = logging.LogRecord(
+        name="httpx",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg="HTTP Request: POST %s",
+        args=(url,),
+        exc_info=None,
+    )
+    assert filt.filter(record) is True
+    rendered = record.getMessage()
+    assert FAKE_TOKEN not in rendered
+    assert "<TOKEN>" in rendered
+
+
+def test_configure_logging_quiets_httpx() -> None:
+    httpx = logging.getLogger("httpx")
+    httpcore = logging.getLogger("httpcore")
+    old_httpx, old_httpcore = httpx.level, httpcore.level
+    try:
+        configure_logging(verbose=False)
+        assert httpx.level == logging.WARNING
+        assert httpcore.level == logging.WARNING
+        configure_logging(verbose=True)
+        assert httpx.level == logging.INFO
+        assert httpcore.level == logging.INFO
+    finally:
+        httpx.setLevel(old_httpx)
+        httpcore.setLevel(old_httpcore)
+        configure_logging(verbose=False)
+
+
+def test_client_installs_httpx_redaction() -> None:
+    TelegramBot(token=FAKE_TOKEN, chat_id=1)
+    httpx = logging.getLogger("httpx")
+    assert any(isinstance(item, TokenRedactFilter) for item in httpx.filters)
 
 
 def test_sync_send_from_running_loop() -> None:

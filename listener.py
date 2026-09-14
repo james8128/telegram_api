@@ -3,22 +3,36 @@
 Register your own commands in make_bot(), then run:
 
     python listener.py
+    python listener.py -v
 
-The loop restarts on unexpected crashes with exponential backoff.
-Ctrl+C stops it.
+Default logs are start/stop and errors. HTTP getUpdates polls are silent.
+-v logs HTTP requests; bot tokens are still redacted. Unexpected crashes
+restart with exponential backoff. Ctrl+C stops it.
 """
 
 from __future__ import annotations
 
+import argparse
 import logging
 import time
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from telegram_client import TelegramBot, TelegramConfigError
+from telegram_client import TelegramBot, TelegramConfigError, configure_logging
 
 log = logging.getLogger("listener")
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run the example Telegram listener.")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Log HTTP requests (bot token is still redacted).",
+    )
+    return parser.parse_args(argv)
 
 
 async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -70,11 +84,9 @@ def make_bot() -> TelegramBot:
     return bot
 
 
-def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    configure_logging(verbose=args.verbose)
     retry_delay = 5
     while True:
         try:
